@@ -7,6 +7,10 @@ from .serializers import ServiceSerializer, BookingSerializer
 from .permissions import IsProvider, IsCustomer, IsOwnerOrReadOnly
 
 
+
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all().order_by("-created_at")
     serializer_class = ServiceSerializer
@@ -26,6 +30,14 @@ class ServiceViewSet(viewsets.ModelViewSet):
         if user.is_authenticated and getattr(user, "role", None) == "PROVIDER" and self.action not in ["list", "retrieve"]:
             return qs.filter(provider=user)
         return qs
+    
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+
+    filterset_fields = ["price", "duration_minutes"]
+    search_fields = ["title", "description"]
+    ordering_fields = ["price", "created_at"]
+    ordering = ["-created_at"]
+
 
 class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
@@ -53,7 +65,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.status = Booking.Status.APPROVED
         booking.save()
         return Response(BookingSerializer(booking).data)
-
+    
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         booking = self.get_object()
