@@ -16,7 +16,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceSerializer
 
     def get_permissions(self):
-        # Anyone can list/retrieve services
+        
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated(), IsProvider(), IsOwnerOrReadOnly()]
@@ -52,7 +52,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         return Booking.objects.none()
 
     def perform_create(self, serializer):
-        # Only customers can create bookings
+       
         if getattr(self.request.user, "role", None) != "CUSTOMER":
             raise permissions.PermissionDenied("Only customers can create bookings.")
         serializer.save(customer=self.request.user)
@@ -60,35 +60,71 @@ class BookingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         booking = self.get_object()
+
+       
         if getattr(request.user, "role", None) != "PROVIDER" or booking.service.provider_id != request.user.id:
             return Response({"detail": "Not allowed."}, status=status.HTTP_403_FORBIDDEN)
+
+       
+        if booking.status != Booking.Status.PENDING:
+            return Response(
+                {"detail": f"Cannot approve a booking that is {booking.status}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         booking.status = Booking.Status.APPROVED
         booking.save()
-        return Response(BookingSerializer(booking).data)
-    
+        return Response(self.get_serializer(booking).data, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         booking = self.get_object()
+
         if getattr(request.user, "role", None) != "PROVIDER" or booking.service.provider_id != request.user.id:
             return Response({"detail": "Not allowed."}, status=status.HTTP_403_FORBIDDEN)
+
+        if booking.status != Booking.Status.PENDING:
+            return Response(
+                {"detail": f"Cannot reject a booking that is {booking.status}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         booking.status = Booking.Status.REJECTED
         booking.save()
-        return Response(BookingSerializer(booking).data)
+        return Response(self.get_serializer(booking).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def complete(self, request, pk=None):
         booking = self.get_object()
+
         if getattr(request.user, "role", None) != "PROVIDER" or booking.service.provider_id != request.user.id:
             return Response({"detail": "Not allowed."}, status=status.HTTP_403_FORBIDDEN)
+
+        if booking.status != Booking.Status.APPROVED:
+            return Response(
+                {"detail": f"Cannot complete a booking that is {booking.status}. Must be APPROVED first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         booking.status = Booking.Status.COMPLETED
         booking.save()
-        return Response(BookingSerializer(booking).data)
+        return Response(self.get_serializer(booking).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         booking = self.get_object()
+
+       
         if getattr(request.user, "role", None) != "CUSTOMER" or booking.customer_id != request.user.id:
             return Response({"detail": "Not allowed."}, status=status.HTTP_403_FORBIDDEN)
+
+        
+        if booking.status not in [Booking.Status.PENDING, Booking.Status.APPROVED]:
+            return Response(
+                {"detail": f"Cannot cancel a booking that is {booking.status}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         booking.status = Booking.Status.CANCELED
         booking.save()
-        return Response(BookingSerializer(booking).data)
+        return Response(self.get_serializer(booking).data, status=status.HTTP_200_OK)
