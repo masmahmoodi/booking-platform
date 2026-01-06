@@ -1,41 +1,39 @@
-import React from "react"
-
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { loginRequest } from "../api";
-import { setTokens, setRole } from "../auth/auth";
+// src/pages/Login.jsx
+import React, { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { loginRequest, setTokens } from "../api"
+import { setRole } from "../auth/auth"
 
 export default function Login() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRoleState] = useState("CUSTOMER");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [form, setForm] = useState({ username: "", password: "" })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  function handleChange(e) {
+    const { name, value } = e.target
+    setForm((prev) => ({ ...prev, [name]: value }))
+  }
 
   async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+    e.preventDefault()
+    setError("")
+    setLoading(true)
 
     try {
-      const data = await loginRequest(username, password);
-      setTokens(data);
+      const data = await loginRequest(form.username, form.password)
+      setTokens(data)
 
-      // temporary: user selects role from dropdown
-      setRole(role);
+      // TEMP fallback: backend should provide role (recommended),
+      // but we default to CUSTOMER to avoid provider/customer mismatch.
+      setRole("CUSTOMER")
 
-      // redirect based on role
-      if (role === "PROVIDER") navigate("/provider");
-      else navigate("/services");
+      navigate("/services")
     } catch (err) {
-      const msg =
-        err?.response?.data?.detail ||
-        "Login failed. Check username/password.";
-      setError(msg);
+      setError(err?.message || "Login failed. Check username/password.")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
@@ -55,8 +53,9 @@ export default function Login() {
             <label className="block text-sm font-medium mb-1">Username</label>
             <input
               className="w-full border rounded-md p-2"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              name="username"
+              value={form.username}
+              onChange={handleChange}
               autoComplete="username"
             />
           </div>
@@ -65,26 +64,12 @@ export default function Login() {
             <label className="block text-sm font-medium mb-1">Password</label>
             <input
               className="w-full border rounded-md p-2"
+              name="password"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={form.password}
+              onChange={handleChange}
               autoComplete="current-password"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Role</label>
-            <select
-              className="w-full border rounded-md p-2"
-              value={role}
-              onChange={(e) => setRoleState(e.target.value)}
-            >
-              <option value="CUSTOMER">CUSTOMER</option>
-              <option value="PROVIDER">PROVIDER</option>
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Temporary: choose the role you’re logging in as.
-            </p>
           </div>
 
           <button
@@ -96,5 +81,5 @@ export default function Login() {
         </form>
       </div>
     </div>
-  );
+  )
 }
