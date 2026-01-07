@@ -1,7 +1,8 @@
-// src/api.js
+
+import axios from "axios";
+
 const BASE_URL = "http://127.0.0.1:8000";
 
-// ---------------- tokens ----------------
 export function getAccessToken() {
   return localStorage.getItem("access");
 }
@@ -12,130 +13,126 @@ export function getRefreshToken() {
 
 export function setTokens({ access, refresh }) {
   if (access) localStorage.setItem("access", access);
-  // IMPORTANT: if backend rotates refresh, it will send a new refresh token
   if (refresh) localStorage.setItem("refresh", refresh);
 }
 
 export function clearTokens() {
   localStorage.removeItem("access");
   localStorage.removeItem("refresh");
+  localStorage.removeItem("role");
 }
 
-// ---------------- refresh (LOCKED) ----------------
+
+export const api = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+
+api.interceptors.request.use(
+  (config) => {
+    const token = getAccessToken();
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 let refreshPromise = null;
 
-export async function refreshAccessToken() {
+async function refreshAccessToken() {
   const refresh = getRefreshToken();
   if (!refresh) {
     clearTokens();
-    throw new Error("No refresh token found. Please login again.");
+    throw new Error("No refresh token. Please login again.");
   }
+  const res = await axios.post(
+    `${BASE_URL}/api/auth/refresh/`,
+    { refresh },
+    { headers: { "Content-Type": "application/json" } }
+  );
 
-  const res = await fetch(`${BASE_URL}/api/auth/refresh/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh }),
-  });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    clearTokens();
-    throw new Error(data?.detail || "Refresh token invalid/expired. Login again.");
-  }
-
-  // ✅ SAVE BOTH (refresh might be rotated)
-  setTokens({ access: data.access, refresh: data.refresh });
-  return data.access;
+  setTokens({ access: res.data.access, refresh: res.data.refresh });
+  return res.data.access;
 }
 
-// ---------------- core fetch ----------------
-export async function apiFetch(
-  path,
-  { method = "GET", body, auth = false } = {}
-) {
-  const doRequest = async (tokenOverride) => {
-    const headers = { "Content-Type": "application/json" };
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
 
-    if (auth) {
-      const token = tokenOverride || getAccessToken();
-      if (token) headers.Authorization = `Bearer ${token}`;
+    if (!error.response) {
+      return Promise.reject(new Error("Network error. Backend not reachable."));
     }
 
-    const res = await fetch(`${BASE_URL}${path}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    const status = error.response.status;
 
-    const contentType = res.headers.get("content-type");
-    const data =
-      contentType && contentType.includes("application/json")
-        ? await res.json().catch(() => null)
-        : await res.text().catch(() => "");
-
-    return { res, data };
-  };
-
-  // 1) First attempt
-  let { res, data } = await doRequest();
-
-  // 2) If unauthorized, refresh once (LOCKED) + retry once
-  if (auth && res.status === 401) {
-    if (!refreshPromise) {
-      refreshPromise = refreshAccessToken().finally(() => {
-        refreshPromise = null;
-      });
+    if (status !== 401) {
+      const msg =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        (typeof error.response?.data === "string"
+          ? error.response.data
+          : JSON.stringify(error.response?.data));
+      return Promise.reject(new Error(msg));
     }
 
-    const newAccess = await refreshPromise;
-    ({ res, data } = await doRequest(newAccess));
+    if (original._retry) {
+      clearTokens();
+      return Promise.reject(new Error("Session expired. Please login again."));
+    }
+    original._retry = true;
+
+    try {
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken().finally(() => {
+          refreshPromise = null;
+        });
+      }
+
+      const newAccess = await refreshPromise;
+      original.headers.Authorization = `Bearer ${newAccess}`;
+      return api(original);
+    } catch (e) {
+      clearTokens();
+      return Promise.reject(
+        new Error(e?.message || "Session expired. Please login again.")
+      );
+    }
   }
+);
 
-  if (!res.ok) {
-    const message =
-      data?.detail ||
-      data?.scheduled_for?.[0] ||
-      data?.service?.[0] ||
-      (typeof data === "string" ? data : JSON.stringify(data));
-
-    // if we still get 401 after refresh, kill tokens
-    if (res.status === 401) clearTokens();
-
-    throw new Error(message);
-  }
-
-  return data;
-}
-
-// ---------------- endpoints ----------------
-export function loginRequest(username, password) {
-  return apiFetch("/api/auth/login/", {
-    method: "POST",
-    body: { username, password },
-    auth: false,
+export async function loginRequest(username, password) {
+  const res = await axios.post(`${BASE_URL}/api/auth/login/`, {
+    username,
+    password,
   });
+  return res.data;
 }
 
-export function getServices() {
-  return apiFetch("/api/services/", { auth: false });
+
+export async function getServices() {
+  const res = await api.get("/api/services/");
+  return res.data;
 }
 
-export function getBookings() {
-  return apiFetch("/api/bookings/", { auth: true });
+export async function getBookings() {
+  const res = await api.get("/api/bookings/");
+  return res.data;
 }
 
-export function createBooking({ service, scheduled_for, note }) {
-  return apiFetch("/api/bookings/", {
-    method: "POST",
-    body: { service, scheduled_for, note },
-    auth: true,
+export async function createBooking({ service, scheduled_for, note }) {
+  const res = await api.post("/api/bookings/", {
+    service,
+    scheduled_for,
+    note,
   });
+  return res.data;
 }
 
-export function bookingAction(id, action) {
-  return apiFetch(`/api/bookings/${id}/${action}/`, {
-    method: "POST",
-    auth: true,
-  });
+export async function bookingAction(id, action) {
+  const res = await api.post(`/api/bookings/${id}/${action}/`);
+  return res.data;
 }

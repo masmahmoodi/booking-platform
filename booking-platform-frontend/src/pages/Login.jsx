@@ -1,4 +1,3 @@
-// src/pages/Login.jsx
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { loginRequest, setTokens } from "../api"
@@ -7,7 +6,12 @@ import { setRole } from "../auth/auth"
 export default function Login() {
   const navigate = useNavigate()
 
-  const [form, setForm] = useState({ username: "", password: "" })
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
+    role: "CUSTOMER", 
+  })
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -23,16 +27,27 @@ export default function Login() {
 
     try {
       const data = await loginRequest(form.username, form.password)
+
+     
       setTokens(data)
 
-      // TEMP fallback: backend should provide role (recommended),
-      // but we default to CUSTOMER to avoid provider/customer mismatch.
-      setRole("CUSTOMER")
+      
+      setRole(form.role)
 
-      navigate("/services")
+      
+      if (form.role === "PROVIDER") {
+        navigate("/provider")
+      } else {
+        navigate("/services")
+      }
     } catch (err) {
-      setError(err?.message || "Login failed. Check username/password.")
+      const msg =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Login failed. Check username/password."
+      setError(msg)
     } finally {
+
       setLoading(false)
     }
   }
@@ -57,6 +72,8 @@ export default function Login() {
               value={form.username}
               onChange={handleChange}
               autoComplete="username"
+              placeholder="e.g. ahmad"
+              required
             />
           </div>
 
@@ -69,7 +86,25 @@ export default function Login() {
               value={form.password}
               onChange={handleChange}
               autoComplete="current-password"
+              placeholder="••••••••"
+              required
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Role</label>
+            <select
+              className="w-full border rounded-md p-2"
+              name="role"
+              value={form.role}
+              onChange={handleChange}
+            >
+              <option value="CUSTOMER">CUSTOMER</option>
+              <option value="PROVIDER">PROVIDER</option>
+            </select>
+
+            <p className="text-xs text-gray-500 mt-1">
+              Temporary: choose the role you’re logging in as.
+            </p>
           </div>
 
           <button

@@ -1,4 +1,4 @@
-// src/auth/auth.js
+
 
 function decodeJwtPayload(token) {
   try {
@@ -15,9 +15,9 @@ export function isLoggedIn() {
   if (!access) return false;
 
   const payload = decodeJwtPayload(access);
-  if (!payload?.exp) return true; // if no exp, treat as logged in
+  if (!payload?.exp) return true;
 
-  // exp is in seconds
+  
   const now = Math.floor(Date.now() / 1000);
   return payload.exp > now;
 }
