@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound"
 
 import ProtectedRoute from "./auth/ProtectedRoute"
 import RoleRoute from "./auth/RoleRoute"
+import ProviderServices from "./pages/ProviderServices";
 
 export default function App() {
   return (
@@ -41,7 +42,20 @@ export default function App() {
           }
         />
 
+        <Route
+            path="/provider/services"
+            element={
+              <ProtectedRoute>
+                <RoleRoute allow={["PROVIDER"]}>
+                  <ProviderServices />
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+
+
         <Route path="*" element={<NotFound />} />
+
       </Routes>
     </BrowserRouter>
   )

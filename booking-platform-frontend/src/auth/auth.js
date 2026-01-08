@@ -10,6 +10,18 @@ function decodeJwtPayload(token) {
   }
 }
 
+// export function isLoggedIn() {
+//   const access = localStorage.getItem("access");
+//   if (!access) return false;
+
+//   const payload = decodeJwtPayload(access);
+//   if (!payload || !payload.exp) return false;
+
+//   const now = Math.floor(Date.now() / 1000);
+//   return payload.exp > now;
+// }
+
+
 export function isLoggedIn() {
   const access = localStorage.getItem("access");
   if (!access) return false;

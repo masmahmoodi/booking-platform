@@ -91,7 +91,6 @@ api.interceptors.response.use(
           refreshPromise = null;
         });
       }
-
       const newAccess = await refreshPromise;
       original.headers.Authorization = `Bearer ${newAccess}`;
       return api(original);
