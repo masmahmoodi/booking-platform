@@ -1,23 +1,17 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { loginRequest, setTokens } from "../api"
-import { setRole } from "../auth/auth"
+import { loginRequest, meRequest, setTokens } from "../api"
+import { setRole, setUserId } from "../auth/auth"
 
 export default function Login() {
   const navigate = useNavigate()
-
-  const [form, setForm] = useState({
-    username: "",
-    password: "",
-    role: "CUSTOMER", 
-  })
-
+  const [form, setForm] = useState({ username: "", password: "" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
   function handleChange(e) {
     const { name, value } = e.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    setForm((p) => ({ ...p, [name]: value }))
   }
 
   async function handleSubmit(e) {
@@ -26,28 +20,18 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const data = await loginRequest(form.username, form.password)
+      const tokens = await loginRequest(form.username, form.password)
+      setTokens(tokens)
 
-     
-      setTokens(data)
+      const me = await meRequest()
+      setRole(me.role)
+      setUserId(me.id)
 
-      
-      setRole(form.role)
-
-      
-      if (form.role === "PROVIDER") {
-        navigate("/provider")
-      } else {
-        navigate("/services")
-      }
+      if (me.role === "PROVIDER") navigate("/provider")
+      else navigate("/services")
     } catch (err) {
-      const msg =
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Login failed. Check username/password."
-      setError(msg)
+      setError(err.message || "Login failed.")
     } finally {
-
       setLoading(false)
     }
   }
@@ -72,7 +56,6 @@ export default function Login() {
               value={form.username}
               onChange={handleChange}
               autoComplete="username"
-              placeholder="e.g. ahmad"
               required
             />
           </div>
@@ -86,25 +69,8 @@ export default function Login() {
               value={form.password}
               onChange={handleChange}
               autoComplete="current-password"
-              placeholder="••••••••"
               required
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Role</label>
-            <select
-              className="w-full border rounded-md p-2"
-              name="role"
-              value={form.role}
-              onChange={handleChange}
-            >
-              <option value="CUSTOMER">CUSTOMER</option>
-              <option value="PROVIDER">PROVIDER</option>
-            </select>
-
-            <p className="text-xs text-gray-500 mt-1">
-              Temporary: choose the role you’re logging in as.
-            </p>
           </div>
 
           <button
@@ -115,6 +81,17 @@ export default function Login() {
           </button>
         </form>
       </div>
+      <p className="text-sm mt-4">
+  Don’t have an account?{" "}
+  <button
+    onClick={() => navigate("/register")}
+    className="underline"
+  >
+    Register
+  </button>
+</p>
+
     </div>
+    
   )
 }

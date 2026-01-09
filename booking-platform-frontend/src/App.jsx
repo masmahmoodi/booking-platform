@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound"
 import ProtectedRoute from "./auth/ProtectedRoute"
 import RoleRoute from "./auth/RoleRoute"
 import ProviderServices from "./pages/ProviderServices";
+import Register from "./pages/Register";
 
 export default function App() {
   return (
@@ -53,7 +54,7 @@ export default function App() {
             }
           />
 
-
+        <Route path="/register" element={<Register />} />
         <Route path="*" element={<NotFound />} />
 
       </Routes>
