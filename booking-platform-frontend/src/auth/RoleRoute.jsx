@@ -1,15 +1,29 @@
-
-import React from "react"
+// src/auth/RoleRoute.jsx
+import React, { useEffect, useState } from "react"
 import { Navigate } from "react-router-dom"
-import { isLoggedIn, getRole } from "./auth"
+import { meRequest } from "../api"
 
 export default function RoleRoute({ allow = [], children }) {
-  if (!isLoggedIn()) return <Navigate to="/login" replace />
+  const [state, setState] = useState({ loading: true, ok: false })
 
-  const role = getRole()
-  if (allow.length > 0 && !allow.includes(role)) {
-    return <Navigate to="/services" replace />
-  }
+  useEffect(() => {
+    let mounted = true
 
-  return children
+    (async () => {
+      try {
+        const me = await meRequest()
+        const ok = allow.includes(me.role)
+        if (mounted) setState({ loading: false, ok })
+      } catch {
+        if (mounted) setState({ loading: false, ok: false })
+      }
+    })()
+
+    return () => {
+      mounted = false
+    }
+  }, [allow])
+
+  if (state.loading) return null
+  return state.ok ? children : <Navigate to="/services" replace />
 }

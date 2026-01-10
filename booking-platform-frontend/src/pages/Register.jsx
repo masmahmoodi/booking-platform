@@ -1,8 +1,6 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import axios from "axios"
-
-const API_BASE = "http://127.0.0.1:8000"
+import { csrfRequest, registerRequest } from "../api"
 
 export default function Register() {
   const navigate = useNavigate()
@@ -17,9 +15,13 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
+  useEffect(() => {
+    csrfRequest().catch(() => {})
+  }, [])
+
   function handleChange(e) {
     const { name, value } = e.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    setForm((p) => ({ ...p, [name]: value }))
   }
 
   async function handleSubmit(e) {
@@ -28,81 +30,63 @@ export default function Register() {
     setLoading(true)
 
     try {
-      await axios.post(`${API_BASE}/api/auth/register/`, form)
+      await registerRequest(form)
       navigate("/login")
     } catch (err) {
-      setError(
-        err.response?.data?.detail ||
-        "Registration failed. Check your input."
-      )
+      setError(err.message || "Registration failed.")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow p-6">
-        <h1 className="text-2xl font-bold mb-4">Register</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h1 className="text-2xl font-bold text-center mb-6">Create account</h1>
 
-        {error && (
-          <div className="mb-4 bg-red-50 text-red-700 p-3 rounded">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            name="username"
-            placeholder="Username"
-            className="w-full border p-2 rounded"
-            onChange={handleChange}
-            required
-          />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Username</label>
+              <input className="w-full border rounded-md px-3 py-2" name="username" value={form.username} onChange={handleChange} required />
+            </div>
 
-          <input
-            name="email"
-            placeholder="Email"
-            className="w-full border p-2 rounded"
-            onChange={handleChange}
-            required
-          />
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input className="w-full border rounded-md px-3 py-2" name="email" value={form.email} onChange={handleChange} required />
+            </div>
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            className="w-full border p-2 rounded"
-            onChange={handleChange}
-            required
-          />
+            <div>
+              <label className="block text-sm font-medium mb-1">Password</label>
+              <input className="w-full border rounded-md px-3 py-2" name="password" type="password" value={form.password} onChange={handleChange} required />
+            </div>
 
-          <select
-            name="role"
-            className="w-full border p-2 rounded"
-            onChange={handleChange}
-          >
-            <option value="CUSTOMER">Customer</option>
-            <option value="PROVIDER">Provider</option>
-          </select>
+            <div>
+              <label className="block text-sm font-medium mb-1">Role</label>
+              <select className="w-full border rounded-md px-3 py-2" name="role" value={form.role} onChange={handleChange}>
+                <option value="CUSTOMER">Customer</option>
+                <option value="PROVIDER">Provider</option>
+              </select>
+            </div>
 
-          <button
-            disabled={loading}
-            className="w-full bg-black text-white p-2 rounded"
-          >
-            {loading ? "Creating..." : "Register"}
-          </button>
-        </form>
+            <button disabled={loading} className="w-full bg-black text-white rounded-md py-2 font-medium disabled:opacity-60">
+              {loading ? "Creating..." : "Register"}
+            </button>
+          </form>
 
-        <p className="text-sm mt-4">
-          Already have an account?{" "}
-          <button
-            onClick={() => navigate("/login")}
-            className="underline"
-          >
-            Login
-          </button>
-        </p>
+          <p className="text-sm text-center text-gray-600 mt-6">
+            Already have an account?{" "}
+            <button onClick={() => navigate("/login")} className="font-medium underline">
+              Login
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   )
