@@ -5,7 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-REPLACE_ME"
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -25,14 +25,16 @@ INSTALLED_APPS = [
     "core",
 ]
 
+# ✅ Middleware order updated:
+# - CORS very high
+# - SessionMiddleware before CommonMiddleware
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
 
-    # CORS should be high
     "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.common.CommonMiddleware",
-
     "django.contrib.sessions.middleware.SessionMiddleware",
+
+    "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -99,18 +101,21 @@ REST_FRAMEWORK = {
 }
 
 # --- React dev server (cookies + CSRF) ---
+# ✅ Use ONE origin in dev: localhost
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
 ]
 
+# ✅ allow JS to read csrftoken (your interceptor uses document.cookie)
+CSRF_COOKIE_HTTPONLY = False
+
+# ✅ for local dev on http
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 

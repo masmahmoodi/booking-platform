@@ -25,7 +25,7 @@ export default function ProviderServices() {
     try {
       const data = await getServices()
       const all = data?.results ?? data ?? []
-      // show only my services if we have myId
+
       const mine = myId ? all.filter((s) => s.provider === myId) : all
       setItems(mine)
     } catch (e) {
